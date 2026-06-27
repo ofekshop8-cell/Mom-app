@@ -1,0 +1,1240 @@
+
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ETI WELLNESS APP — Complete Production Build
+// Features: Login, Glassmorphism UI, RTL Hebrew, All wellness modules
+// ═══════════════════════════════════════════════════════════════════════════════
+import { useState, useEffect, useRef, useCallback, useMemo, memo } from "react";
+import {
+  Flame, Wind, CheckCircle2, Circle, Star, Heart, ChevronDown, ChevronUp,
+  Plus, Trash2, BarChart2, Target, Waves, Dumbbell, Scale, Lock, Unlock,
+  Bell, BellOff, Cloud, CloudOff, Trophy, Droplets, AlertTriangle, X,
+  RotateCcw, Smile, TrendingDown, LogIn, Eye, EyeOff, Settings, RefreshCw,
+  Sparkles, Award, Zap, Activity, BookOpen, Moon, Sun, Sunset
+} from "lucide-react";
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
+  ResponsiveContainer, PieChart, Pie, Cell
+} from "recharts";
+
+// ═══════════════════════════════════════════════════════════
+// CONSTANTS & CONFIG
+// ═══════════════════════════════════════════════════════════
+const APP_PREFIX = "eti_app_v1_";
+const APP_PASSWORD = "eti2024";
+
+const LS = {
+  get: (key, fallback) => {
+    try {
+      const v = localStorage.getItem(APP_PREFIX + key);
+      return v !== null ? JSON.parse(v) : fallback;
+    } catch { return fallback; }
+  },
+  set: (key, val) => {
+    try { localStorage.setItem(APP_PREFIX + key, JSON.stringify(val)); } catch {}
+  },
+  clear: () => {
+    try {
+      Object.keys(localStorage)
+        .filter(k => k.startsWith(APP_PREFIX))
+        .forEach(k => localStorage.removeItem(k));
+    } catch {}
+  },
+};
+
+// ─── Schedule data ────────────────────────────────────────
+const SCHEDULE = {
+  "ראשון": {
+    label: "יום ראשון", subtitle: "כושר וזמן איכות", color: "emerald",
+    items: [
+      { id:"s1_1", time:"06:30–07:30", text:"תפילה וקפה במרפסת", icon:"☕", notify:"06:30", notifyMsg:"בוקר טוב אתי! זמן לתפילה וקפה ☕" },
+      { id:"s1_2", time:"07:30–08:00", text:"התארגנות ויציאה לעבודה", icon:"🚗" },
+      { id:"s1_3", time:"08:00–16:00", text:"עבודה בסביבה ממוקדת", icon:"💼" },
+      { id:"s1_4", time:"16:45–17:35", text:"מכון כושר – הליכה 50 דקות 🔥", icon:"👟", notify:"16:45", notifyMsg:"אתי אלופה! הגיע הזמן לאימון הליכה 👟🔥" },
+      { id:"s1_5", time:"17:35–18:00", text:"חזרה הביתה והתרעננות", icon:"🏠" },
+      { id:"s1_6", time:"18:00–19:20", text:"זמן איכות עם אופק ❤️", icon:"❤️" },
+      { id:"s1_7", time:"19:20–19:40", text:"קריאת ספר (20 דקות)", icon:"📚", notify:"19:20", notifyMsg:"אתי, קחי רגע לנשום. זמן לקרוא ספר 📚" },
+      { id:"s1_8", time:"19:40–22:00", text:"זמן חופשי וסדרות טורקיות", icon:"🎬" },
+      { id:"s1_9", time:"22:15",       text:"שינה עמוקה ומתחדשת", icon:"😴" },
+    ]
+  },
+  "שני": {
+    label: "יום שני", subtitle: "שקילה ומיקוד תזונה", color: "blue",
+    items: [
+      { id:"s2_1", time:"06:30–07:30", text:"תפילה וקפה במרפסת", icon:"☕" },
+      { id:"s2_2", time:"07:30–08:00", text:"התארגנות ויציאה לעבודה", icon:"🚗" },
+      { id:"s2_3", time:"08:00–16:00", text:"עבודה", icon:"💼" },
+      { id:"s2_4", time:"16:00–17:15", text:"מכון כושר – הליכה ממוקדת", icon:"👟", notify:"16:00", notifyMsg:"יאללה אתי! זמן לאימון 💪" },
+      { id:"s2_5", time:"17:20–18:30", text:"שקילה שבועית אצל חלי ממן", icon:"⚖️", notify:"17:20", notifyMsg:"זמן לשקילה אצל חלי! את מדהימה ⚖️" },
+      { id:"s2_6", time:"18:30–19:20", text:"חזרה הביתה, מקלחת והתארגנות", icon:"🏠" },
+      { id:"s2_7", time:"19:20–19:35", text:"קריאת ספר (15 דקות)", icon:"📚", notify:"19:20", notifyMsg:"זמן לקרוא ספר 📚" },
+      { id:"s2_8", time:"19:35–21:50", text:"זמן חופשי וסדרות טורקיות", icon:"🎬" },
+      { id:"s2_9", time:"22:10",       text:"הולכת לישון ברוגע", icon:"😴" },
+    ]
+  },
+  "שלישי": {
+    label: "יום שלישי", subtitle: "חיבור לטבע וים", color: "cyan",
+    items: [
+      { id:"s3_1", time:"06:30–07:30", text:"תפילה וקפה במרפסת", icon:"☕" },
+      { id:"s3_2", time:"07:30–08:00", text:"התארגנות ויציאה לעבודה", icon:"🚗" },
+      { id:"s3_3", time:"08:00–16:00", text:"עבודה", icon:"💼" },
+      { id:"s3_4", time:"16:00–17:00", text:"הגעה הביתה ומנוחה קלה", icon:"🏠" },
+      { id:"s3_5", time:"17:00–19:35", text:"ים – ניקוי ראש מול השקיעה 🌅", icon:"🌊", notify:"17:00", notifyMsg:"אתי! זמן לים ולשקיעה 🌊🌅" },
+      { id:"s3_6", time:"19:35–20:10", text:"חזרה הביתה", icon:"🏠" },
+      { id:"s3_7", time:"20:10–20:20", text:"קריאת ספר (10 דקות)", icon:"📚" },
+      { id:"s3_8", time:"20:20–22:00", text:"זמן חופשי וסדרות טורקיות", icon:"🎬" },
+      { id:"s3_9", time:"22:15",       text:"הולכת לישון בריאה ומחוזקת", icon:"😴" },
+    ]
+  },
+  "רביעי": {
+    label: "יום רביעי", subtitle: "כושר וזמן איכות", color: "emerald",
+    items: [
+      { id:"s4_1", time:"06:30–07:30", text:"תפילה וקפה במרפסת", icon:"☕" },
+      { id:"s4_2", time:"07:30–08:00", text:"התארגנות ויציאה לעבודה", icon:"🚗" },
+      { id:"s4_3", time:"08:00–16:00", text:"עבודה בסביבה ממוקדת", icon:"💼" },
+      { id:"s4_4", time:"16:45–17:35", text:"מכון כושר – הליכה 50 דקות 🔥", icon:"👟", notify:"16:45", notifyMsg:"יאללה בוא ניתן בראבק! זמן לאימון 🏋️" },
+      { id:"s4_5", time:"17:35–18:00", text:"חזרה הביתה והתרעננות", icon:"🏠" },
+      { id:"s4_6", time:"18:00–19:20", text:"זמן איכות עם אופק ❤️", icon:"❤️" },
+      { id:"s4_7", time:"19:20–19:40", text:"קריאת ספר (20 דקות)", icon:"📚" },
+      { id:"s4_8", time:"19:40–22:00", text:"זמן חופשי וסדרות טורקיות", icon:"🎬" },
+      { id:"s4_9", time:"22:15",       text:"שינה עמוקה ומתחדשת", icon:"😴" },
+    ]
+  },
+  "חמישי": {
+    label: "יום חמישי", subtitle: "חיבור לטבע וים", color: "cyan",
+    items: [
+      { id:"s5_1", time:"06:30–07:30", text:"תפילה וקפה במרפסת", icon:"☕" },
+      { id:"s5_2", time:"07:30–08:00", text:"התארגנות ויציאה לעבודה", icon:"🚗" },
+      { id:"s5_3", time:"08:00–16:00", text:"עבודה", icon:"💼" },
+      { id:"s5_4", time:"16:00–17:00", text:"הגעה הביתה ומנוחה קלה", icon:"🏠" },
+      { id:"s5_5", time:"17:00–19:35", text:"ים – ניקוי ראש מול השקיעה 🌅", icon:"🌊", notify:"17:00", notifyMsg:"אתי! זמן לים 🌊" },
+      { id:"s5_6", time:"19:35–20:10", text:"חזרה הביתה", icon:"🏠" },
+      { id:"s5_7", time:"20:10–20:20", text:"קריאת ספר (10 דקות)", icon:"📚" },
+      { id:"s5_8", time:"20:20–22:00", text:"זמן חופשי וסדרות טורקיות", icon:"🎬" },
+      { id:"s5_9", time:"22:15",       text:"הולכת לישון בריאה ומחוזקת", icon:"😴" },
+    ]
+  },
+};
+const DAYS_ORDER = ["ראשון","שני","שלישי","רביעי","חמישי"];
+
+const MILESTONES = [
+  { weeks:2,  label:"כל הכבוד – מתחילים להיכנס לזה!", medal:"🥉", color:"#cd7f32" },
+  { weeks:6,  label:"מתחילים לרדת במשקל!", medal:"🥈", color:"#c0c0c0" },
+  { weeks:8,  label:"מתחילים להפסיק את החרדות!", medal:"🥇", color:"#ffd700" },
+  { weeks:12, label:"הדופק מתחיל לרדת ולהיות יציב", medal:"🏅", color:"#b87333" },
+  { weeks:16, label:"נכנסים לשגרה ונותנים בראבק!", medal:"🏆", color:"#4ade80" },
+  { weeks:20, label:"אתי, את כבר לא צריכה אותנו. את יודעת לבד! 👑", medal:"👑", color:"#a855f7" },
+];
+
+// ═══════════════════════════════════════════════════════════
+// UTILITIES
+// ═══════════════════════════════════════════════════════════
+const getIsraelHour = () => {
+  try {
+    const parts = new Intl.DateTimeFormat("he-IL", {
+      timeZone: "Asia/Jerusalem", hour: "numeric", hour12: false
+    }).formatToParts(new Date());
+    const h = parts.find(p => p.type === "hour");
+    return h ? parseInt(h.value) : new Date().getHours();
+  } catch { return new Date().getHours(); }
+};
+
+const getGreeting = () => {
+  const h = getIsraelHour();
+  if (h >= 5 && h < 12)  return { text:"בוקר טוב אתי! ☀️", sub:"יאללה מתחילים יום מטורף!", Icon: Sun };
+  if (h >= 12 && h < 17) return { text:"צהריים טובים אתי! 🌤️", sub:"ממשיכים בכל הכוח!", Icon: Sun };
+  if (h >= 17 && h < 21) return { text:"ערב טוב אתי! 🌅", sub:"זמן להירגע ולנשום.", Icon: Sunset };
+  return { text:"לילה טוב אתי! 🌙", sub:"שינה מתוקה ורגועה.", Icon: Moon };
+};
+
+const todayStr = () => new Date().toDateString();
+const formatDate = (d) => new Date(d).toLocaleDateString("he-IL", { day:"numeric", month:"short" });
+
+// Confetti burst (pure CSS particles)
+const ConfettiPop = ({ active }) => {
+  if (!active) return null;
+  const pieces = Array.from({length:18}, (_,i) => i);
+  const colors = ["#10b981","#3b82f6","#f59e0b","#a855f7","#ef4444","#06b6d4"];
+  return (
+    <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
+      {pieces.map(i => (
+        <div key={i} style={{
+          position:"absolute",
+          left: `${10 + (i * 5) % 80}%`,
+          top: "-10px",
+          width: 8, height: 8,
+          borderRadius: i%2===0 ? "50%" : "2px",
+          backgroundColor: colors[i % colors.length],
+          animation: `confettiFall ${1.5 + (i%3)*0.4}s ease-in ${(i%5)*0.1}s forwards`,
+          transform: `rotate(${i*25}deg)`
+        }}/>
+      ))}
+    </div>
+  );
+};
+
+// ═══════════════════════════════════════════════════════════
+// LOGIN GATE
+// ═══════════════════════════════════════════════════════════
+const LoginGate = memo(({ onLogin }) => {
+  const [pw, setPw] = useState("");
+  const [show, setShow] = useState(false);
+  const [err, setErr] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const attempt = () => {
+    if (pw === APP_PASSWORD) { onLogin(); }
+    else {
+      setErr(true); setShake(true);
+      setTimeout(() => setShake(false), 600);
+      setTimeout(() => setErr(false), 2000);
+    }
+  };
+
+  return (
+    <div className="min-h-screen flex items-center justify-center p-4" style={{background:"linear-gradient(135deg,#0f172a 0%,#1e3a5f 50%,#0f2027 100%)"}}>
+      <div className="w-full max-w-sm">
+        <div className="text-center mb-8">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center mx-auto mb-4 shadow-2xl shadow-emerald-500/30">
+            <Heart size={36} className="text-white"/>
+          </div>
+          <h1 className="text-3xl font-black text-white mb-2">אתי ❤️</h1>
+          <p className="text-white/50 text-sm">האפליקציה האישית שלך לבריאות ורוגע</p>
+        </div>
+
+        <div className={`bg-white/10 backdrop-blur-xl rounded-3xl p-6 border border-white/20 shadow-2xl transition-all ${shake ? "animate-pulse border-red-400/50" : ""}`}>
+          <label className="block text-white/70 text-sm font-medium mb-2 text-right">סיסמה</label>
+          <div className="relative mb-4">
+            <input
+              type={show ? "text" : "password"}
+              value={pw}
+              onChange={e => { setPw(e.target.value); setErr(false); }}
+              onKeyDown={e => e.key === "Enter" && attempt()}
+              placeholder="הכניסי סיסמה..."
+              className={`w-full bg-white/10 border rounded-2xl px-4 py-3.5 text-white text-center text-lg tracking-widest placeholder:text-white/30 focus:outline-none transition-all ${err ? "border-red-400/70" : "border-white/20 focus:border-emerald-400/60"}`}
+              dir="ltr"
+              autoFocus
+            />
+            <button onClick={() => setShow(s => !s)} className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40">
+              {show ? <EyeOff size={18}/> : <Eye size={18}/>}
+            </button>
+          </div>
+          {err && <p className="text-red-400 text-xs text-center mb-3 animate-bounce">סיסמה שגויה, נסי שוב 🔐</p>}
+          <button onClick={attempt} className="w-full py-3.5 bg-gradient-to-r from-emerald-500 to-cyan-500 rounded-2xl text-white font-bold text-base shadow-lg shadow-emerald-500/30 hover:shadow-emerald-500/50 transition-all active:scale-95">
+            <span className="flex items-center justify-center gap-2"><LogIn size={18}/> כניסה</span>
+          </button>
+        </div>
+        <p className="text-white/20 text-xs text-center mt-4">כל הנתונים שמורים בטוחה במכשיר שלך 🔒</p>
+      </div>
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// SOS GROUNDING MODAL (5-4-3-2-1 CBT)
+// ═══════════════════════════════════════════════════════════
+const SOS_STEPS = [
+  { n:5, sense:"רואה", instruction:"תסתכלי סביבך. מצאי ✅ 5 דברים שאת יכולה לראות עכשיו.", emoji:"👁️" },
+  { n:4, sense:"מרגישה", instruction:"מצאי ✅ 4 דברים שאת יכולה להרגיש פיזית – הבגד, הכיסא, הרצפה...", emoji:"🤲" },
+  { n:3, sense:"שומעת", instruction:"הקשיבי. מצאי ✅ 3 דברים שאת יכולה לשמוע עכשיו.", emoji:"👂" },
+  { n:2, sense:"מריחה", instruction:"מצאי ✅ 2 דברים שאת יכולה להריח סביבך.", emoji:"👃" },
+  { n:1, sense:"טועמת", instruction:"מצאי ✅ דבר 1 שאת יכולה לטעום – או פשוט לשתות שלוק מים 💧", emoji:"👅" },
+];
+
+const SOSModal = memo(({ onClose }) => {
+  const [step, setStep] = useState(0);
+  const [clicks, setClicks] = useState(0);
+  const [done, setDone] = useState(false);
+
+  const cur = SOS_STEPS[step] || SOS_STEPS[0];
+  const needed = cur.n;
+
+  const handleClick = () => {
+    const next = clicks + 1;
+    setClicks(next);
+    if (next >= needed) {
+      if (step >= SOS_STEPS.length - 1) { setDone(true); }
+      else { setStep(s => s + 1); setClicks(0); }
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" style={{background:"linear-gradient(135deg,#0c1445 0%,#1a237e 50%,#0d47a1 100%)"}}>
+      <div className="w-full max-w-sm">
+        {!done ? (
+          <div className="text-center">
+            <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur flex items-center justify-center mx-auto mb-4 text-4xl">
+              {cur.emoji}
+            </div>
+            <div className="text-white/50 text-sm mb-1">שלב {step + 1} מתוך 5</div>
+            <h2 className="text-2xl font-black text-white mb-4 leading-tight px-2">{cur.instruction}</h2>
+
+            {/* Progress dots */}
+            <div className="flex justify-center gap-2 mb-6">
+              {Array.from({length: needed}).map((_,i) => (
+                <div key={i} className={`w-4 h-4 rounded-full border-2 transition-all duration-300 ${i < clicks ? "bg-emerald-400 border-emerald-400 scale-110" : "border-white/30 bg-transparent"}`}/>
+              ))}
+            </div>
+
+            <button onClick={handleClick}
+              className="w-full py-5 bg-white/15 backdrop-blur border border-white/30 rounded-3xl text-white font-bold text-lg mb-4 active:scale-95 transition-all hover:bg-white/25">
+              {clicks < needed - 1 ? `✅ סימנתי אחד! (${needed - clicks - 1} נשאר)` : "✅ סיימתי! הבא →"}
+            </button>
+            <div className="flex gap-2 justify-center">
+              {SOS_STEPS.map((_,i) => (
+                <div key={i} className={`h-1 rounded-full transition-all ${i < step ? "w-6 bg-emerald-400" : i === step ? "w-8 bg-white" : "w-6 bg-white/20"}`}/>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <div className="text-center">
+            <div className="text-6xl mb-4">🌟</div>
+            <h2 className="text-2xl font-black text-white mb-4 leading-relaxed px-2">
+              את בטוחה.<br/>הכל בסדר.<br/>החרדה היא רק תחושה<br/>והיא עוברת. 💙
+            </h2>
+            <p className="text-white/60 text-sm mb-6">עשית עבודה נהדרת, אתי. נשמי, את חזקה.</p>
+            <button onClick={onClose} className="w-full py-4 bg-emerald-500/30 border border-emerald-400/50 rounded-2xl text-emerald-300 font-bold text-base">
+              חזרה לאפליקציה ✨
+            </button>
+          </div>
+        )}
+        <button onClick={onClose} className="absolute top-6 left-6 text-white/40 hover:text-white/80">
+          <X size={24}/>
+        </button>
+      </div>
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// BREATHING WIDGET (4-4 cycle, 10 reps)
+// ═══════════════════════════════════════════════════════════
+const BreathingWidget = memo(() => {
+  const [phase, setPhase]       = useState("idle");
+  const [seconds, setSeconds]   = useState(4);
+  const [rep, setRep]           = useState(0);
+  const [todayCount, setTodayCount] = useState(() => {
+    const saved = LS.get("breath_today", {date:"", count:0});
+    return saved.date === todayStr() ? saved.count : 0;
+  });
+  const timerRef = useRef(null);
+  const REPS = 10;
+
+  const stop = () => { clearInterval(timerRef.current); setPhase("idle"); setSeconds(4); setRep(0); };
+
+  const start = () => {
+    if (phase !== "idle") { stop(); return; }
+    setPhase("inhale"); setSeconds(4); setRep(0);
+  };
+
+  useEffect(() => {
+    if (phase === "idle" || phase === "done") return;
+    timerRef.current = setInterval(() => {
+      setSeconds(s => {
+        if (s > 1) return s - 1;
+        clearInterval(timerRef.current);
+        if (phase === "inhale") { setPhase("exhale"); setSeconds(4); }
+        else {
+          setRep(r => {
+            const next = r + 1;
+            if (next >= REPS) {
+              setPhase("done");
+              setTodayCount(prev => {
+                const newC = prev + 1;
+                LS.set("breath_today", { date: todayStr(), count: newC });
+                return newC;
+              });
+            } else { setPhase("inhale"); setSeconds(4); }
+            return next;
+          });
+        }
+        return s;
+      });
+    }, 1000);
+    return () => clearInterval(timerRef.current);
+  }, [phase]);
+
+  const scale = phase === "inhale" ? "scale-125" : "scale-100";
+  const bgColor = phase === "inhale" ? "from-emerald-400/40 to-cyan-400/30" : "from-blue-500/40 to-indigo-400/30";
+  const phaseLabel = { idle:"לחצי להתחיל", inhale:`שאפי... ${seconds}`, exhale:`נשפי... ${seconds}`, done:"כל הכבוד אלופה! 🎉" };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 border border-slate-100">
+      <h3 className="text-slate-800 font-bold text-base mb-1 text-right flex items-center gap-2 justify-end">
+        <span>תרגיל נשימות</span><Wind size={18} className="text-cyan-500"/>
+      </h3>
+      <p className="text-slate-500 text-xs text-right mb-4">4 שניות שאיפה + 4 שניות נשיפה – 10 חזרות</p>
+      <div className="flex flex-col items-center gap-4">
+        <div className="relative flex items-center justify-center cursor-pointer" onClick={start}>
+          <div className={`absolute w-28 h-28 rounded-full bg-gradient-to-br ${bgColor} blur-xl transition-transform duration-[3800ms] ease-in-out ${scale}`}/>
+          <div className={`relative w-24 h-24 rounded-full bg-gradient-to-br ${bgColor} border-2 border-white/50 flex flex-col items-center justify-center shadow-xl transition-transform duration-[3800ms] ease-in-out ${scale}`}>
+            <Wind size={24} className="text-white mb-1"/>
+            {phase !== "idle" && phase !== "done" && <span className="text-2xl font-black text-white">{seconds}</span>}
+          </div>
+        </div>
+        <p className="text-slate-700 font-semibold text-sm">{phaseLabel[phase]}</p>
+        {phase !== "idle" && phase !== "done" && (
+          <div className="w-full">
+            <div className="flex justify-between text-xs text-slate-500 mb-1">
+              <span>{rep}/{REPS} חזרות</span>
+              <span>{phase === "inhale" ? "🌬️ שאיפה" : "💨 נשיפה"}</span>
+            </div>
+            <div className="w-full h-2 bg-slate-100 rounded-full">
+              <div className="h-full bg-gradient-to-r from-cyan-400 to-emerald-400 rounded-full transition-all" style={{width:`${(rep/REPS)*100}%`}}/>
+            </div>
+          </div>
+        )}
+        {phase === "done" && (
+          <button onClick={() => {setPhase("idle"); setRep(0); setSeconds(4);}} className="text-xs text-cyan-600 underline">שחזרי תרגיל</button>
+        )}
+        <div className="text-xs text-slate-500 bg-slate-50 rounded-xl px-3 py-2 w-full text-center">
+          💧 פעמים שנשמת היום: <strong className="text-emerald-600">{todayCount}</strong>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// WATER TRACKER
+// ═══════════════════════════════════════════════════════════
+const WaterTracker = memo(() => {
+  const [glasses, setGlasses] = useState(() => {
+    const saved = LS.get("water", {date:"", count:0});
+    return saved.date === todayStr() ? saved.count : 0;
+  });
+  const [celebrate, setCelebrate] = useState(false);
+  const MAX = 10;
+
+  const fill = (i) => {
+    const next = i + 1;
+    setGlasses(next);
+    LS.set("water", {date: todayStr(), count: next});
+    if (next === MAX) { setCelebrate(true); setTimeout(() => setCelebrate(false), 3000); }
+  };
+  const unfill = (i) => {
+    const next = i;
+    setGlasses(next);
+    LS.set("water", {date: todayStr(), count: next});
+    setCelebrate(false);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 border border-slate-100">
+      <h3 className="text-slate-800 font-bold text-base mb-1 text-right flex items-center gap-2 justify-end">
+        <span>מעקב שתייה 💧</span><Droplets size={18} className="text-blue-500"/>
+      </h3>
+      <p className="text-slate-500 text-xs text-right mb-4">יעד: 10 כוסות מים ביום (≈2 ליטר)</p>
+      <div className="grid grid-cols-5 gap-2 mb-3">
+        {Array.from({length:MAX}).map((_,i) => (
+          <button key={i} onClick={() => i < glasses ? unfill(i) : fill(i)}
+            className="relative h-12 rounded-xl border-2 transition-all duration-300 flex flex-col items-center justify-end overflow-hidden"
+            style={{borderColor: i < glasses ? "#3b82f6" : "#e2e8f0", background: "white"}}>
+            {i < glasses && (
+              <div className="absolute inset-0 bg-gradient-to-t from-blue-500 to-blue-400 transition-all duration-500"/>
+            )}
+            <span className="relative z-10 text-lg pb-1" style={{lineHeight:1}}>
+              {i < glasses ? "💧" : "🥛"}
+            </span>
+          </button>
+        ))}
+      </div>
+      <div className="flex items-center justify-between text-sm">
+        <span className="text-slate-400">{MAX - glasses} נשארו</span>
+        <span className="font-bold text-blue-600">{glasses}/{MAX} כוסות</span>
+      </div>
+      {celebrate && (
+        <div className="mt-3 bg-emerald-50 rounded-xl p-3 text-center border border-emerald-200">
+          <p className="text-emerald-700 font-bold text-sm">⭐ הגוף שלך אומר לך תודה! יעד המים הושלם!</p>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// JAR OF WINS
+// ═══════════════════════════════════════════════════════════
+const JarOfWins = memo(() => {
+  const [wins, setWins] = useState(() => LS.get("wins", []));
+  const [input, setInput] = useState("");
+  const [featured, setFeatured] = useState(null);
+  const [confetti, setConfetti] = useState(false);
+
+  const addWin = () => {
+    if (!input.trim()) return;
+    const newW = { id: Date.now(), text: input.trim(), date: new Date().toLocaleDateString("he-IL") };
+    const updated = [newW, ...wins];
+    setWins(updated);
+    LS.set("wins", updated);
+    setInput("");
+  };
+
+  const boost = () => {
+    if (!wins.length) return;
+    const r = wins[Math.floor(Math.random() * wins.length)];
+    setFeatured(r);
+    setConfetti(true);
+    setTimeout(() => setConfetti(false), 2500);
+  };
+
+  const deleteWin = (id) => {
+    const updated = wins.filter(w => w.id !== id);
+    setWins(updated);
+    LS.set("wins", updated);
+    if (featured?.id === id) setFeatured(null);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 border border-slate-100 relative overflow-hidden">
+      <ConfettiPop active={confetti}/>
+      <h3 className="text-slate-800 font-bold text-base mb-1 text-right flex items-center gap-2 justify-end">
+        <span>צנצנת הניצחונות 🫙</span><Sparkles size={18} className="text-amber-500"/>
+      </h3>
+      <p className="text-slate-500 text-xs text-right mb-3">תוסיפי כל הישג – גדול או קטן!</p>
+
+      {featured && (
+        <div className="mb-4 bg-gradient-to-br from-amber-50 to-orange-50 rounded-2xl p-4 border border-amber-200 text-center relative">
+          <button onClick={() => setFeatured(null)} className="absolute top-2 left-2 text-slate-400 hover:text-slate-600"><X size={14}/></button>
+          <div className="text-3xl mb-2">🌟</div>
+          <p className="text-amber-800 font-bold text-base leading-snug">"{featured.text}"</p>
+          <p className="text-amber-500 text-xs mt-1">{featured.date}</p>
+          <p className="text-orange-600 font-bold text-sm mt-2">את פשוט השראה, אתי! 💛</p>
+        </div>
+      )}
+
+      <div className="flex gap-2 mb-3" dir="rtl">
+        <input value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && addWin()}
+          placeholder="על מה את גאה בעצמך היום אתי?"
+          className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-emerald-400 text-right"
+          dir="rtl"/>
+        <button onClick={addWin} className="px-3 py-2.5 bg-amber-500 rounded-xl text-white hover:bg-amber-600 transition-all shrink-0 active:scale-95">
+          <Plus size={16}/>
+        </button>
+      </div>
+
+      {wins.length > 0 && (
+        <button onClick={boost}
+          className="w-full mb-3 py-3 bg-gradient-to-r from-amber-400 to-orange-400 rounded-xl text-white font-bold text-sm shadow-md shadow-amber-200 active:scale-95 transition-all flex items-center justify-center gap-2">
+          <Zap size={16}/> אני צריכה חיזוק! הראי לי ניצחון!
+        </button>
+      )}
+
+      {wins.length === 0 && (
+        <p className="text-slate-400 text-sm text-center py-3">הצנצנת ריקה – הוסיפי ניצחון ראשון! ✨</p>
+      )}
+
+      <div className="space-y-2 max-h-40 overflow-y-auto">
+        {wins.map(w => (
+          <div key={w.id} className="flex items-start gap-2 bg-amber-50 rounded-xl p-2.5">
+            <button onClick={() => deleteWin(w.id)} className="text-slate-300 hover:text-red-400 shrink-0 mt-0.5"><Trash2 size={12}/></button>
+            <div className="flex-1 text-right">
+              <p className="text-slate-700 text-sm leading-snug">{w.text}</p>
+              <p className="text-slate-400 text-xs">{w.date}</p>
+            </div>
+            <span className="text-lg shrink-0">🏆</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// WEIGHT TRACKER (Heli Maman)
+// ═══════════════════════════════════════════════════════════
+const WeightTracker = memo(() => {
+  const [startW, setStartW] = useState(() => LS.get("weight_start", ""));
+  const [curW, setCurW]     = useState(() => LS.get("weight_current", ""));
+  const [history, setHistory] = useState(() => LS.get("weight_history", []));
+
+  const diff = parseFloat(startW) && parseFloat(curW) ? parseFloat(startW) - parseFloat(curW) : null;
+  const rate = diff && history.length >= 2 ? diff / (history.length - 1) : null;
+
+  const save = () => {
+    if (!curW) return;
+    LS.set("weight_start", startW);
+    LS.set("weight_current", curW);
+    const entry = { date: new Date().toLocaleDateString("he-IL"), weight: parseFloat(curW) };
+    const updated = [...history, entry];
+    setHistory(updated);
+    LS.set("weight_history", updated);
+  };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 border border-slate-100">
+      <h3 className="text-slate-800 font-bold text-base mb-1 text-right flex items-center gap-2 justify-end">
+        <span>מעקב משקל – חלי ממן ⚖️</span><Scale size={18} className="text-blue-500"/>
+      </h3>
+      <div className="grid grid-cols-2 gap-3 mb-3" dir="rtl">
+        <div>
+          <label className="text-slate-500 text-xs block mb-1">משקל התחלתי (ק"ג)</label>
+          <input type="number" value={startW} onChange={e => setStartW(e.target.value)}
+            placeholder="90.0"
+            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-emerald-400 text-right"/>
+        </div>
+        <div>
+          <label className="text-slate-500 text-xs block mb-1">משקל נוכחי (ק"ג)</label>
+          <input type="number" value={curW} onChange={e => setCurW(e.target.value)}
+            placeholder="87.5"
+            className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-emerald-400 text-right"/>
+        </div>
+      </div>
+      <button onClick={save} className="w-full py-2.5 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 font-bold text-sm mb-3 hover:bg-emerald-100 transition-all">
+        ✅ שמרי מדד
+      </button>
+      {diff !== null && (
+        <div className={`rounded-xl p-3 text-center mb-2 ${diff > 0 ? "bg-emerald-50 border border-emerald-200" : "bg-slate-50 border border-slate-200"}`}>
+          {diff > 0 ? (
+            <>
+              <p className="text-emerald-700 font-black text-xl">⬇️ ירדת {diff.toFixed(1)} ק"ג!</p>
+              <p className="text-emerald-600 font-bold text-sm">אלופה אתי! 🏆 ממשיכים ככה!</p>
+            </>
+          ) : diff < 0 ? (
+            <p className="text-slate-600 text-sm">עלית {Math.abs(diff).toFixed(1)} ק"ג – זה בסדר, מחר חוזרים למסלול 💪</p>
+          ) : (
+            <p className="text-slate-600 text-sm">אותו משקל – שמירה זה גם הישג! 👏</p>
+          )}
+          {rate && rate > 0 && (
+            <p className="text-slate-500 text-xs mt-1">📈 אם תמשיכי בקצב הזה, תרדי עוד {(rate * 4).toFixed(1)} ק"ג בחודש!</p>
+          )}
+        </div>
+      )}
+      {history.length >= 2 && (
+        <div className="h-28 mt-2" dir="ltr">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={history}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+              <XAxis dataKey="date" tick={{fontSize:9, fill:"#94a3b8"}} tickLine={false}/>
+              <YAxis domain={["auto","auto"]} tick={{fontSize:9, fill:"#94a3b8"}} tickLine={false}/>
+              <Tooltip contentStyle={{fontSize:11, borderRadius:8, border:"1px solid #e2e8f0"}} labelStyle={{color:"#64748b"}}/>
+              <Line type="monotone" dataKey="weight" stroke="#10b981" strokeWidth={2.5} dot={{r:3,fill:"#10b981"}}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// MEDALS ROADMAP
+// ═══════════════════════════════════════════════════════════
+const MedalRoadmap = memo(() => {
+  const [startDate] = useState(() => {
+    const saved = LS.get("start_date", null);
+    if (saved) return new Date(saved);
+    const now = new Date();
+    LS.set("start_date", now.toISOString());
+    return now;
+  });
+
+  const weeksPassed = Math.floor((Date.now() - new Date(startDate).getTime()) / (7 * 24 * 3600 * 1000));
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 border border-slate-100">
+      <h3 className="text-slate-800 font-bold text-base mb-1 text-right flex items-center gap-2 justify-end">
+        <span>מסלול המדליות 🏅</span><Trophy size={18} className="text-amber-500"/>
+      </h3>
+      <p className="text-slate-500 text-xs text-right mb-4">שבוע {weeksPassed} מאז ההתחלה</p>
+      <div className="space-y-3">
+        {MILESTONES.map((m, i) => {
+          const unlocked = weeksPassed >= m.weeks;
+          return (
+            <div key={i} className={`flex items-start gap-3 p-3 rounded-xl border transition-all ${unlocked ? "bg-emerald-50 border-emerald-200" : "bg-slate-50 border-slate-100 opacity-60"}`}>
+              <div className="shrink-0 text-2xl">{unlocked ? "🔓" : "🔒"}</div>
+              <div className="flex-1 text-right">
+                <div className="flex items-center justify-end gap-2 mb-0.5">
+                  <span className="text-sm font-bold text-slate-700">{m.medal}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-bold ${unlocked ? "bg-emerald-100 text-emerald-700" : "bg-slate-200 text-slate-500"}`}>
+                    {m.weeks < 8 ? `${m.weeks} שבועות` : `${m.weeks/4} חודשים`}
+                  </span>
+                </div>
+                <p className={`text-sm leading-snug ${unlocked ? "text-emerald-800 font-semibold" : "text-slate-400"}`}>{m.label}</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// ANXIETY TRACKER
+// ═══════════════════════════════════════════════════════════
+const AnxietyTracker = memo(() => {
+  const [level, setLevel] = useState(5);
+  const [log, setLog] = useState(() => LS.get("anxiety_log", []));
+  const [saved, setSaved] = useState(false);
+
+  const save = () => {
+    const entry = { date: new Date().toLocaleDateString("he-IL"), level, ts: Date.now() };
+    const updated = [...log, entry];
+    setLog(updated); LS.set("anxiety_log", updated);
+    setSaved(true); setTimeout(() => setSaved(false), 2000);
+  };
+
+  const thisWeek = log.filter(e => Date.now() - e.ts < 7*24*3600*1000);
+  const avgThis = thisWeek.length ? thisWeek.reduce((a,b) => a + b.level, 0) / thisWeek.length : null;
+  const prevWeek = log.filter(e => { const d = Date.now() - e.ts; return d >= 7*24*3600*1000 && d < 14*24*3600*1000; });
+  const avgPrev = prevWeek.length ? prevWeek.reduce((a,b) => a + b.level, 0) / prevWeek.length : null;
+  const diff = avgThis !== null && avgPrev !== null ? ((avgPrev - avgThis) / avgPrev * 100).toFixed(0) : null;
+
+  const color = level <= 3 ? "emerald" : level <= 6 ? "amber" : "red";
+  const colorMap = { emerald:"#10b981", amber:"#f59e0b", red:"#ef4444" };
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 border border-slate-100">
+      <h3 className="text-slate-800 font-bold text-base mb-1 text-right flex items-center gap-2 justify-end">
+        <span>מדד חרדה יומי 💙</span><Activity size={18} className="text-blue-500"/>
+      </h3>
+      <div className="mb-3">
+        <div className="flex justify-between text-xs text-slate-400 mb-1">
+          <span>ממש שקטה</span><span>חרדה גבוהה</span>
+        </div>
+        <input type="range" min={1} max={10} value={level} onChange={e => setLevel(parseInt(e.target.value))}
+          className="w-full" style={{accentColor: colorMap[color]}}/>
+        <div className="text-center mt-2">
+          <span className="text-3xl font-black" style={{color: colorMap[color]}}>{level}</span>
+          <span className="text-slate-400 text-sm">/10</span>
+          <p className="text-xs text-slate-500 mt-1">
+            {level <= 3 ? "😊 יופי! את רגועה היום" : level <= 6 ? "😌 בסדר, ננשום ביחד" : "😔 זה יעבור אתי, הכל בסדר"}
+          </p>
+        </div>
+      </div>
+      <button onClick={save} className="w-full py-2.5 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 font-bold text-sm mb-3 hover:bg-blue-100 transition-all active:scale-95">
+        {saved ? "✅ נשמר!" : "💙 שמרי מדד היום"}
+      </button>
+      {diff !== null && (
+        <div className={`rounded-xl p-3 text-center text-sm ${parseFloat(diff) > 0 ? "bg-emerald-50 border border-emerald-200 text-emerald-700" : "bg-red-50 border border-red-200 text-red-700"}`}>
+          {parseFloat(diff) > 0 ? `✅ השבוע החרדה ירדה ב-${diff}% – אלופה!` : `📈 השבוע החרדה עלתה מעט – זה בסדר, תמשיכי`}
+        </div>
+      )}
+      {thisWeek.length > 0 && (
+        <div className="h-20 mt-3" dir="ltr">
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={thisWeek}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9"/>
+              <XAxis dataKey="date" tick={{fontSize:8, fill:"#94a3b8"}} tickLine={false}/>
+              <YAxis domain={[1,10]} tick={{fontSize:8, fill:"#94a3b8"}} tickLine={false}/>
+              <Tooltip contentStyle={{fontSize:10, borderRadius:8}} labelStyle={{color:"#64748b"}}/>
+              <Line type="monotone" dataKey="level" stroke="#3b82f6" strokeWidth={2} dot={{r:3,fill:"#3b82f6"}}/>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// SCHEDULE DAY CARD
+// ═══════════════════════════════════════════════════════════
+const colorMap = {
+  emerald: { border:"border-emerald-200", check:"text-emerald-500", time:"text-emerald-600", prog:"bg-emerald-500", badge:"bg-emerald-100 text-emerald-700" },
+  blue:    { border:"border-blue-200",    check:"text-blue-500",    time:"text-blue-600",    prog:"bg-blue-500",    badge:"bg-blue-100 text-blue-700" },
+  cyan:    { border:"border-cyan-200",    check:"text-cyan-500",    time:"text-cyan-600",    prog:"bg-cyan-500",    badge:"bg-cyan-100 text-cyan-700" },
+};
+
+const DayCard = memo(({ dayKey, day, checks, onToggle }) => {
+  const [open, setOpen] = useState(false);
+  const c = colorMap[day.color] || colorMap.emerald;
+  const done = day.items.filter(i => checks[i.id]).length;
+  const pct = Math.round((done / day.items.length) * 100);
+
+  return (
+    <div className={`bg-white rounded-2xl shadow-md border ${c.border} overflow-hidden`}>
+      <button className="w-full flex items-center justify-between p-4 text-right" onClick={() => setOpen(o => !o)}>
+        <div className="flex items-center gap-2 shrink-0">
+          {open ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
+          <div className="text-right">
+            <div className="text-slate-600 text-sm font-bold">{done}/{day.items.length}</div>
+            <div className="w-14 h-1.5 bg-slate-100 rounded-full mt-1">
+              <div className={`h-full rounded-full transition-all ${c.prog} ${done === day.items.length ? "shadow-sm" : ""}`} style={{width:`${pct}%`}}/>
+            </div>
+          </div>
+        </div>
+        <div className="text-right">
+          <div className="font-bold text-slate-800 text-base">{day.label}</div>
+          <div className="text-slate-400 text-xs">{day.subtitle}</div>
+        </div>
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-2">
+          {day.items.map(item => {
+            const checked = !!checks[item.id];
+            return (
+              <div key={item.id} onClick={() => onToggle(item.id)}
+                className={`flex items-start gap-3 p-3 rounded-xl cursor-pointer select-none transition-all duration-200 ${checked ? "bg-slate-50 opacity-60" : "bg-white border border-slate-100 hover:border-emerald-200"}`}>
+                <div className="mt-0.5 shrink-0">
+                  {checked ? <CheckCircle2 size={20} className={c.check}/> : <Circle size={20} className="text-slate-300"/>}
+                </div>
+                <div className="flex-1 text-right">
+                  <span className={`text-sm leading-snug ${checked ? "line-through text-slate-400" : "text-slate-700"}`}>
+                    {item.icon} {item.text}
+                  </span>
+                  <div className={`text-xs mt-0.5 font-medium ${c.time}`}>{item.time}</div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// WEEKLY STATS
+// ═══════════════════════════════════════════════════════════
+const WeeklyStats = memo(({ checks }) => {
+  const gymItems = ["s1_4","s2_4","s4_4"];
+  const readItems = ["s1_7","s2_7","s3_7","s4_7","s5_7"];
+  const totalItems = Object.values(SCHEDULE).flatMap(d => d.items).length;
+  const doneCount = Object.values(checks).filter(Boolean).length;
+  const pct = Math.round((doneCount / totalItems) * 100);
+
+  const gymDone = gymItems.filter(id => checks[id]).length;
+  const gymMins = gymDone * 50;
+  const readDone = readItems.filter(id => checks[id]).length;
+
+  const pieData = [
+    { name:"הושלם", value: pct },
+    { name:"נשאר", value: 100 - pct },
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 border border-slate-100">
+      <h3 className="text-slate-800 font-bold text-base mb-4 text-right flex items-center gap-2 justify-end">
+        <span>סיכום שבוע מנצח 🌟</span><Star size={18} className="text-amber-500"/>
+      </h3>
+      <div className="flex items-center gap-4 mb-4">
+        <div className="w-24 h-24 shrink-0" dir="ltr">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={pieData} cx="50%" cy="50%" innerRadius={28} outerRadius={40} dataKey="value" startAngle={90} endAngle={-270} strokeWidth={0}>
+                <Cell fill="#10b981"/>
+                <Cell fill="#f1f5f9"/>
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+        <div className="flex-1 space-y-2 text-right">
+          <div className="bg-emerald-50 rounded-xl p-2.5 border border-emerald-100">
+            <p className="text-emerald-600 font-bold text-sm">⏱️ {gymMins} דקות כושר</p>
+            <p className="text-slate-400 text-xs">{gymDone} אימונים השבוע</p>
+          </div>
+          <div className="bg-blue-50 rounded-xl p-2.5 border border-blue-100">
+            <p className="text-blue-600 font-bold text-sm">📚 {readDone} פעמי קריאה</p>
+            <p className="text-slate-400 text-xs">זמן איכות ורוגע</p>
+          </div>
+          <div className="bg-amber-50 rounded-xl p-2.5 border border-amber-100">
+            <p className="text-amber-600 font-bold text-sm">🎯 {pct}% שגרה</p>
+            <p className="text-slate-400 text-xs">עמידה ביעדים</p>
+          </div>
+        </div>
+      </div>
+      {pct >= 80 && <p className="text-emerald-600 font-bold text-sm text-center bg-emerald-50 rounded-xl p-2">את פשוט השראה, אתי! 💚</p>}
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// WEEKLY GOALS
+// ═══════════════════════════════════════════════════════════
+const WeeklyGoals = memo(({ goals, onAdd, onToggle, onDelete }) => {
+  const [input, setInput] = useState("");
+  const done = goals.filter(g => g.done).length;
+  const total = goals.length;
+  const pct = total ? Math.round((done/total)*100) : 0;
+  const circumference = 2 * Math.PI * 32;
+
+  return (
+    <div className="bg-white rounded-2xl shadow-lg p-5 border border-slate-100">
+      <div className="flex items-center justify-between mb-4">
+        <div className="relative w-20 h-20 shrink-0">
+          <svg className="w-20 h-20 -rotate-90" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="32" stroke="#f1f5f9" strokeWidth="6" fill="none"/>
+            <circle cx="40" cy="40" r="32" stroke="#a855f7" strokeWidth="6" fill="none"
+              strokeLinecap="round"
+              strokeDasharray={circumference}
+              strokeDashoffset={circumference - (pct/100)*circumference}
+              style={{transition:"stroke-dashoffset 0.6s ease"}}/>
+          </svg>
+          <div className="absolute inset-0 flex flex-col items-center justify-center">
+            <span className="text-base font-black text-slate-700">{pct}%</span>
+            <span className="text-slate-400 text-[9px]">הושג</span>
+          </div>
+        </div>
+        <div className="text-right flex-1 mr-3">
+          <h3 className="text-slate-800 font-bold text-base flex items-center gap-2 justify-end">
+            <span>מטרות השבוע 🎯</span><Target size={18} className="text-purple-500"/>
+          </h3>
+          <p className="text-slate-500 text-xs mt-0.5">מוצאי שבת – בראבק!</p>
+          {total > 0 && done === total && (
+            <p className="text-emerald-600 text-xs font-bold mt-1">🎉 סגרנו {done} מתוך {total} מטרות השבוע!</p>
+          )}
+          {total > 0 && done > 0 && done < total && (
+            <p className="text-purple-600 text-xs font-bold mt-1">✅ עשינו וי ב-{done} מתוך {total} מטרות!</p>
+          )}
+        </div>
+      </div>
+      <div className="flex gap-2 mb-3" dir="rtl">
+        <input value={input} onChange={e => setInput(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && input.trim() && (onAdd(input.trim()), setInput(""))}
+          placeholder="הוסיפי מטרה חדשה לשבוע..."
+          className="flex-1 border border-slate-200 rounded-xl px-3 py-2.5 text-sm text-slate-700 focus:outline-none focus:border-purple-400 text-right"
+          dir="rtl"/>
+        <button onClick={() => { if(input.trim()) { onAdd(input.trim()); setInput(""); }}}
+          className="px-3 py-2.5 bg-purple-500 rounded-xl text-white hover:bg-purple-600 transition-all shrink-0 active:scale-95">
+          <Plus size={16}/>
+        </button>
+      </div>
+      {goals.length === 0 && <p className="text-slate-400 text-sm text-center py-2">אין מטרות – הוסיפי אחת! ✨</p>}
+      <div className="space-y-2">
+        {goals.map(g => (
+          <div key={g.id} className={`flex items-center gap-2 p-3 rounded-xl transition-all ${g.done ? "bg-purple-50 border border-purple-100" : "bg-slate-50 border border-slate-100"}`}>
+            <button onClick={() => onDelete(g.id)} className="text-slate-300 hover:text-red-400 transition-colors shrink-0"><Trash2 size={13}/></button>
+            <span className={`flex-1 text-sm text-right ${g.done ? "line-through text-slate-400" : "text-slate-700"}`}>{g.text}</span>
+            <button onClick={() => onToggle(g.id)} className="shrink-0">
+              {g.done ? <CheckCircle2 size={20} className="text-purple-500"/> : <Circle size={20} className="text-slate-300"/>}
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// DEVELOPER MENU
+// ═══════════════════════════════════════════════════════════
+const DevMenu = memo(({ onReset, visible }) => {
+  if (!visible) return null;
+  return (
+    <div className="fixed bottom-24 left-4 z-40 bg-slate-800 rounded-2xl p-4 shadow-2xl border border-slate-600 w-56">
+      <p className="text-white text-xs font-bold mb-3">🛠 Developer Menu</p>
+      <button onClick={onReset} className="w-full py-2 bg-red-500/20 border border-red-500/40 rounded-xl text-red-400 text-xs font-bold hover:bg-red-500/30 transition-all flex items-center justify-center gap-2">
+        <RotateCcw size={13}/> איפוס כל הנתונים
+      </button>
+    </div>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// NOTIFICATION HOOK
+// ═══════════════════════════════════════════════════════════
+function useNotifications(checks) {
+  const [perm, setPerm] = useState(() => typeof Notification !== "undefined" ? Notification.permission : "default");
+  const sentRef = useRef(new Set());
+
+  const request = async () => {
+    if (typeof Notification === "undefined") return;
+    const r = await Notification.requestPermission();
+    setPerm(r);
+  };
+
+  useEffect(() => {
+    if (perm !== "granted") return;
+    const interval = setInterval(() => {
+      const now = new Date();
+      const hhmm = `${String(now.getHours()).padStart(2,"0")}:${String(now.getMinutes()).padStart(2,"0")}`;
+      const key = `${now.toDateString()}_${hhmm}`;
+      if (sentRef.current.has(key)) return;
+      Object.values(SCHEDULE).forEach(day => {
+        day.items.forEach(item => {
+          if (item.notify && item.notify === hhmm && !checks[item.id]) {
+            new Notification("אתי 💪", { body: item.notifyMsg || `זמן ל: ${item.text}`, icon: "/favicon.ico" });
+            sentRef.current.add(key);
+          }
+        });
+      });
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [perm, checks]);
+
+  return { perm, request };
+}
+
+// ═══════════════════════════════════════════════════════════
+// CLOUD SYNC STATUS
+// ═══════════════════════════════════════════════════════════
+const CloudSync = memo(() => {
+  const [email, setEmail] = useState(() => LS.get("cloud_email",""));
+  const [inputMode, setInputMode] = useState(false);
+  const [tmpEmail, setTmpEmail] = useState("");
+  const [synced, setSynced] = useState(false);
+
+  const save = () => {
+    if (tmpEmail.includes("@")) {
+      setEmail(tmpEmail); LS.set("cloud_email", tmpEmail);
+      setInputMode(false); setSynced(true);
+      setTimeout(() => setSynced(false), 3000);
+    }
+  };
+
+  if (email) {
+    return (
+      <div className="flex items-center justify-end gap-2 text-xs text-emerald-600 font-medium">
+        <span>{synced ? "🔄 מסתנכרן..." : "הנתונים מגובים לענן של אתי ✅"}</span>
+        <Cloud size={14}/>
+      </div>
+    );
+  }
+
+  if (inputMode) {
+    return (
+      <div className="flex gap-2">
+        <button onClick={() => setInputMode(false)} className="text-slate-400 text-xs">ביטול</button>
+        <input value={tmpEmail} onChange={e => setTmpEmail(e.target.value)} onKeyDown={e=>e.key==="Enter"&&save()}
+          placeholder="האימייל שלך..." type="email"
+          className="flex-1 border border-slate-200 rounded-xl px-3 py-1.5 text-xs focus:outline-none focus:border-emerald-400 text-right" dir="rtl"/>
+        <button onClick={save} className="px-3 py-1.5 bg-emerald-500 rounded-xl text-white text-xs font-bold">אישור</button>
+      </div>
+    );
+  }
+
+  return (
+    <button onClick={() => setInputMode(true)}
+      className="flex items-center gap-2 text-xs text-slate-500 hover:text-emerald-600 transition-colors">
+      <span>התחברות עם אימייל</span><Cloud size={14}/>
+    </button>
+  );
+});
+
+// ═══════════════════════════════════════════════════════════
+// MAIN APP
+// ═══════════════════════════════════════════════════════════
+export default function App() {
+  // ─── Auth ──────────────────────────────────────────────
+  const [loggedIn, setLoggedIn] = useState(() => LS.get("auth", false));
+
+  // ─── Core State ────────────────────────────────────────
+  const [streak, setStreak]     = useState(() => LS.get("streak", 0));
+  const [lastDate, setLastDate] = useState(() => LS.get("lastDate", ""));
+  const [checks, setChecks]     = useState(() => LS.get("checks", {}));
+  const [goals, setGoals]       = useState(() => LS.get("goals", []));
+
+  // ─── UI State ──────────────────────────────────────────
+  const [tab, setTab]           = useState("schedule");
+  const [showSOS, setShowSOS]   = useState(false);
+  const [showDev, setShowDev]   = useState(false);
+  const [devClicks, setDevClicks] = useState(0);
+
+  const dayNames = ["ראשון","שני","שלישי","רביעי","חמישי","שישי","שבת"];
+  const todayKey = dayNames[new Date().getDay()];
+  const [activeDay, setActiveDay] = useState(() => DAYS_ORDER.includes(todayKey) ? todayKey : "ראשון");
+
+  const greeting = useMemo(() => getGreeting(), []);
+  const { perm: notifPerm, request: requestNotif } = useNotifications(checks);
+
+  // ─── Persist ───────────────────────────────────────────
+  useEffect(() => { if(loggedIn) LS.set("auth", true); }, [loggedIn]);
+  useEffect(() => { LS.set("checks", checks); }, [checks]);
+  useEffect(() => { LS.set("goals", goals); }, [goals]);
+  useEffect(() => { LS.set("streak", streak); LS.set("lastDate", lastDate); }, [streak, lastDate]);
+
+  // ─── Toggle check + streak ─────────────────────────────
+  const toggleCheck = useCallback((id) => {
+    setChecks(c => {
+      const next = { ...c, [id]: !c[id] };
+      const todayDay = SCHEDULE[activeDay];
+      if (todayDay) {
+        const allDone = todayDay.items.every(i => i.id === id ? !c[id] : !!next[i.id]);
+        const today = new Date().toDateString();
+        if (allDone && lastDate !== today) { setStreak(s => s + 1); setLastDate(today); }
+      }
+      return next;
+    });
+  }, [activeDay, lastDate]);
+
+  // ─── Goals helpers ─────────────────────────────────────
+  const addGoal = useCallback((text) => setGoals(g => [...g, {id:Date.now().toString(),text,done:false}]), []);
+  const toggleGoal = useCallback((id) => setGoals(g => g.map(x => x.id===id ? {...x,done:!x.done} : x)), []);
+  const deleteGoal = useCallback((id) => setGoals(g => g.filter(x => x.id!==id)), []);
+
+  // ─── Reset (dev) ───────────────────────────────────────
+  const resetAll = () => {
+    LS.clear();
+    window.location.reload();
+  };
+
+  // ─── Today progress ────────────────────────────────────
+  const todayProgress = useMemo(() => {
+    const day = SCHEDULE[activeDay];
+    if (!day) return null;
+    const done = day.items.filter(i => checks[i.id]).length;
+    return { done, total: day.items.length, pct: Math.round((done/day.items.length)*100) };
+  }, [checks, activeDay]);
+
+  if (!loggedIn) return <LoginGate onLogin={() => setLoggedIn(true)}/>;
+
+  const tabs = [
+    { id:"schedule", label:"📅 שגרה" },
+    { id:"wellness", label:"💪 בריאות" },
+    { id:"goals",    label:"🎯 מטרות" },
+    { id:"progress", label:"📊 התקדמות" },
+  ];
+
+  return (
+    <div className="min-h-screen pb-28" style={{background:"linear-gradient(160deg,#f0fdf4 0%,#eff6ff 50%,#faf5ff 100%)"}}>
+      {/* ── SOS Overlay ──────────────────────────── */}
+      {showSOS && <SOSModal onClose={() => setShowSOS(false)}/>}
+
+      {/* ── Dev Menu ─────────────────────────────── */}
+      <DevMenu visible={showDev} onReset={resetAll}/>
+
+      {/* ── SOS Floating Button ──────────────────── */}
+      <button onClick={() => setShowSOS(true)}
+        className="fixed top-4 left-4 z-30 w-12 h-12 rounded-2xl bg-red-500 shadow-xl shadow-red-200 flex items-center justify-center text-white font-black text-xs active:scale-95 transition-all"
+        title="SOS הרגעה">
+        SOS
+      </button>
+
+      {/* ── Main Container ───────────────────────── */}
+      <div className="max-w-lg mx-auto px-4 pt-5" dir="rtl">
+
+        {/* ── Header ───────────────────────────────── */}
+        <div className="bg-white/80 backdrop-blur-md rounded-3xl shadow-lg border border-white/60 p-5 mb-4">
+          {/* Top bar */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <CloudSync/>
+            </div>
+            {/* Notification bell */}
+            <button onClick={notifPerm === "granted" ? undefined : requestNotif}
+              className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-xl font-bold transition-all ${notifPerm === "granted" ? "bg-emerald-100 text-emerald-700 border border-emerald-200" : "bg-slate-100 text-slate-600 border border-slate-200 hover:bg-slate-200"}`}>
+              {notifPerm === "granted" ? <><Bell size={13}/> התראות פעילות ✅</> : <><BellOff size={13}/> הפעילי התראות 🔔</>}
+            </button>
+          </div>
+
+          {/* Greeting */}
+          <div className="flex items-start gap-3 justify-between">
+            <div>
+              {/* Secret dev toggle */}
+              <div onClick={() => { const n = devClicks+1; setDevClicks(n); if(n>=5) {setShowDev(d=>!d); setDevClicks(0);}}} className="cursor-default select-none">
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-emerald-400 to-cyan-500 flex items-center justify-center shadow-md shadow-emerald-200">
+                  <Heart size={22} className="text-white"/>
+                </div>
+              </div>
+            </div>
+            <div className="text-right flex-1">
+              <h1 className="text-xl font-black text-slate-800 leading-tight">{greeting.text}</h1>
+              <p className="text-slate-500 text-sm mt-0.5 font-medium">{greeting.sub}</p>
+              <div className="flex items-center gap-2 justify-end mt-2">
+                <span className="text-slate-500 text-xs">ימים ברצף</span>
+                <div className="flex items-center gap-1 bg-orange-100 border border-orange-200 rounded-xl px-2.5 py-1">
+                  <span className="font-black text-orange-600 text-sm">{streak}</span>
+                  <Flame size={14} className="text-orange-500"/>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Today progress */}
+          {todayProgress && (
+            <div className="mt-3 pt-3 border-t border-slate-100">
+              <div className="flex justify-between text-xs mb-1.5">
+                <span className="text-emerald-600 font-bold">{todayProgress.done}/{todayProgress.total} משימות היום</span>
+                <span className="text-slate-500">יום {activeDay}</span>
+              </div>
+              <div className="w-full h-2.5 bg-slate-100 rounded-full overflow-hidden">
+                <div className="h-full bg-gradient-to-r from-emerald-400 to-cyan-400 rounded-full transition-all duration-700"
+                  style={{width:`${todayProgress.pct}%`}}/>
+              </div>
+              {todayProgress.pct === 100 && <p className="text-emerald-600 text-xs font-bold text-center mt-1.5">🎉 יאללה בוא ניתן בראבק! יום מושלם!</p>}
+            </div>
+          )}
+        </div>
+
+        {/* ── Tabs ──────────────────────────────────── */}
+        <div className="flex gap-2 mb-4 overflow-x-auto pb-1">
+          {tabs.map(t => (
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`shrink-0 px-4 py-2.5 rounded-2xl text-sm font-bold transition-all shadow-sm ${
+                tab===t.id
+                  ? "bg-white shadow-md text-slate-800 border border-slate-200"
+                  : "bg-white/50 text-slate-500 border border-white/60 hover:bg-white/80"
+              }`}>
+              {t.label}
+            </button>
+          ))}
+        </div>
+
+        {/* ══ SCHEDULE TAB ══════════════════════════ */}
+        {tab === "schedule" && (
+          <div className="space-y-3">
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {DAYS_ORDER.map(d => (
+                <button key={d} onClick={() => setActiveDay(d)}
+                  className={`shrink-0 px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
+                    activeDay===d ? "bg-white shadow-md border-emerald-200 text-emerald-700" : "bg-white/50 border-white/60 text-slate-500"
+                  }`}>
+                  {d}
+                </button>
+              ))}
+            </div>
+            {SCHEDULE[activeDay] && (
+              <DayCard dayKey={activeDay} day={SCHEDULE[activeDay]} checks={checks} onToggle={toggleCheck}/>
+            )}
+          </div>
+        )}
+
+        {/* ══ WELLNESS TAB ══════════════════════════ */}
+        {tab === "wellness" && (
+          <div className="space-y-4">
+            <BreathingWidget/>
+            <WaterTracker/>
+            <AnxietyTracker/>
+          </div>
+        )}
+
+        {/* ══ GOALS TAB ═════════════════════════════ */}
+        {tab === "goals" && (
+          <div className="space-y-4">
+            <WeeklyGoals goals={goals} onAdd={addGoal} onToggle={toggleGoal} onDelete={deleteGoal}/>
+            <WeightTracker/>
+            <JarOfWins/>
+          </div>
+        )}
+
+        {/* ══ PROGRESS TAB ══════════════════════════ */}
+        {tab === "progress" && (
+          <div className="space-y-4">
+            <WeeklyStats checks={checks}/>
+            <MedalRoadmap/>
+          </div>
+        )}
+
+      </div>
+
+      {/* ── Bottom bar ────────────────────────────── */}
+      <div className="fixed bottom-0 left-0 right-0 z-20">
+        <div className="max-w-lg mx-auto px-4 pb-4" dir="rtl">
+          <div className="bg-white/90 backdrop-blur-md rounded-2xl border border-slate-200 shadow-xl px-4 py-3 flex items-center justify-between">
+            <span className="text-xs text-slate-400">
+              {streak > 0 ? `🔥 ${streak} ימים ברצף! ממשיכים כך!` : "💪 היום מתחילים! הכוח שלך!"}
+            </span>
+            <button onClick={() => setShowSOS(true)} className="text-xs text-red-500 font-bold bg-red-50 border border-red-200 rounded-xl px-3 py-1.5 active:scale-95 transition-all">
+              🆘 הרגעה
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Global CSS ──────────────────────────── */}
+      <style>{`
+        @keyframes confettiFall {
+          0%   { transform: translateY(-10px) rotate(0deg); opacity:1; }
+          100% { transform: translateY(100vh) rotate(720deg); opacity:0; }
+        }
+        * { -webkit-tap-highlight-color: transparent; }
+        input[type=range] { height: 6px; border-radius: 9999px; }
+        ::-webkit-scrollbar { display:none; }
+        body { overflow-x: hidden; }
+        .backdrop-blur-md { backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+      `}</style>
+    </div>
